@@ -78,13 +78,13 @@ public class StateExecutorTest {
         }
 
         this.logger.info("Waiting for writer to finish");
-        for (int i = 0; i < 10 && !writerEnvironment.isTerminated(); i++) {
+        for (int i = 0; i < 60 && !writerEnvironment.isTerminated(); i++) {
             this.wait(1000);
         }
         WORKING_READER_STATE.setTerminateIfEmpty(true);
 
         this.logger.info("Waiting for reader to finish");
-        for (int i = 0; i < 10 && !readerEnvironment.isTerminated(); i++) {
+        for (int i = 0; i < 60 && !readerEnvironment.isTerminated(); i++) {
             this.wait(1000);
         }
 
