@@ -30,7 +30,14 @@
   <version>0.1.0-SNAPSHOT</version>
 
   <name>Indoqa Zookeeper</name>
-  <description>Utilities for the Spring framework</description>
+  <description>A simple state machine operating on Apache ZooKeeper</description>
+
+  <scm>
+    <connection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</connection>
+    <developerConnection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</developerConnection>
+    <url>https://github.com/Indoqa/indoqa-zookeeper</url>
+    <tag>HEAD</tag>
+  </scm>
 
   <properties>
     <project.build.compiler.version>1.8</project.build.compiler.version>
@@ -70,22 +77,4 @@
     </dependency>
   </dependencies>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/test-resources/*.*</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
-  <scm>
-    <connection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</connection>
-    <developerConnection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</developerConnection>
-  </scm>
 </project>
