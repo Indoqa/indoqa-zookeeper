@@ -62,31 +62,33 @@ public class StateExecutorTest {
 
         StateExecutor stateExecutor = new StateExecutor(this.testingCluster.getConnectString(), 30000);
 
-        Execution writerEnvironment = stateExecutor.executeState(INITIAL_WRITER_STATE);
-        Execution readerEnvironment = stateExecutor.executeState(INITIAL_READER_STATE);
+        Execution writerExecution = stateExecutor.executeState(INITIAL_WRITER_STATE);
+        Execution readerExecution = stateExecutor.executeState(INITIAL_READER_STATE);
 
+        // slowly kill off all ZooKeeper instances, eventually leading to a broken ensemble
         for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
             this.wait(5000);
-            this.logger.info("Killing server " + eachInstance.getConnectString());
+            this.logger.info("Killing server {}", eachInstance.getConnectString());
             this.testingCluster.killServer(eachInstance);
         }
 
+        // slowly restart all ZooKeeper instances, eventually restoring normal operation
         for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
             this.wait(5000);
-            this.logger.info("Restarting server " + eachInstance.getConnectString());
+            this.logger.info("Restarting server {}", eachInstance.getConnectString());
             this.testingCluster.restartServer(eachInstance);
         }
 
+        // wait for the writer to finish
         this.logger.info("Waiting for writer to finish");
-        for (int i = 0; i < 60 && !writerEnvironment.isTerminated(); i++) {
-            this.wait(1000);
-        }
+        this.waitForTermination(writerExecution);
+
+        // now signal the reader that it can stop when no more item are available
         WORKING_READER_STATE.setTerminateIfEmpty(true);
 
+        // wait for the reader to finish
         this.logger.info("Waiting for reader to finish");
-        for (int i = 0; i < 60 && !readerEnvironment.isTerminated(); i++) {
-            this.wait(1000);
-        }
+        this.waitForTermination(readerExecution);
 
         assertEquals(0, WorkingWriterState.WORKING_WRITER_STATE.getPendingCount());
         assertEquals(itemCount, WorkingReaderState.WORKING_READER_STATE.getReadCount());
@@ -99,6 +101,12 @@ public class StateExecutorTest {
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void waitForTermination(Execution execution) {
+        for (int i = 0; i < 60 && !execution.isTerminated(); i++) {
+            this.wait(1000);
         }
     }
 }

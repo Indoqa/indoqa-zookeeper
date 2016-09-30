@@ -30,8 +30,10 @@ public final class InitialWriterState extends AbstractZooKeeperState {
 
     @Override
     protected void onStart() throws KeeperException {
+        // ensure that all required data structures exist
         this.ensureNodeExists("/queue");
 
+        // now transition to the state that performs the actual work
         this.transitionTo(WORKING_WRITER_STATE);
     }
 }

@@ -64,23 +64,27 @@ public class WorkingReaderState extends AbstractZooKeeperState {
     }
 
     private void processItems() throws KeeperException {
+        // get all children under "/queue" and create a watch on it using "this" as the watcher
         List<String> items = this.getChildrenAndWatch("/queue");
         if (items.isEmpty()) {
             if (this.terminateIfEmpty) {
-                this.environment.terminate();
+                this.terminate();
             }
             return;
         }
 
+        // process all items that were found
         for (String eachItem : items) {
-            this.deleteNode("/queue/" + eachItem);
-            this.readCount.incrementAndGet();
-
+            // simulate some short running operation
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
                 // ignore
             }
+
+            // remove the completed item and increase our counter
+            this.deleteNode("/queue/" + eachItem);
+            this.readCount.incrementAndGet();
         }
     }
 }

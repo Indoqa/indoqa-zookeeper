@@ -45,17 +45,21 @@ public final class WorkingWriterState extends AbstractZooKeeperState {
     protected void onStart() throws KeeperException {
         this.logger.info("Creating items. {} remaining.", this.pendingCount.get());
 
+        // keep writing items as long as the pending count is not 0
+        // don't worry about connection problems, the StateExecutor will restart our execution when necessary
         while (this.pendingCount.get() > 0) {
-            this.createNode("/queue/item-", this.data, CreateMode.PERSISTENT_SEQUENTIAL);
-            this.pendingCount.decrementAndGet();
-
+            // simulate some short running operation
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
                 // ignore
             }
+
+            this.createNode("/queue/item-", this.data, CreateMode.PERSISTENT_SEQUENTIAL);
+            this.pendingCount.decrementAndGet();
         }
 
-        this.environment.terminate();
+        // we're done writing, terminate this execution
+        this.terminate();
     }
 }
