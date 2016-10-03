@@ -16,7 +16,7 @@
  */
 package com.indoqa.zookeeper;
 
-import static com.indoqa.zookeeper.WorkingReaderState.WORKING_READER_STATE;
+import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
 
 import org.apache.zookeeper.KeeperException;
 
@@ -34,6 +34,6 @@ public final class InitialReaderState extends AbstractZooKeeperState {
         this.ensureNodeExists("/queue");
 
         // now transition to the state that performs the actual work
-        this.transitionTo(WORKING_READER_STATE);
+        this.transitionTo(WAITING_READER_STATE);
     }
 }

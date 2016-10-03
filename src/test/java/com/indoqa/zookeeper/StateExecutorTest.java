@@ -18,6 +18,7 @@ package com.indoqa.zookeeper;
 
 import static com.indoqa.zookeeper.InitialReaderState.INITIAL_READER_STATE;
 import static com.indoqa.zookeeper.InitialWriterState.INITIAL_WRITER_STATE;
+import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
 import static com.indoqa.zookeeper.WorkingReaderState.WORKING_READER_STATE;
 import static com.indoqa.zookeeper.WorkingWriterState.WORKING_WRITER_STATE;
 import static org.junit.Assert.assertEquals;
@@ -83,15 +84,15 @@ public class StateExecutorTest {
         this.logger.info("Waiting for writer to finish");
         this.waitForTermination(writerExecution);
 
-        // now signal the reader that it can stop when no more item are available
-        WORKING_READER_STATE.setTerminateIfEmpty(true);
+        // now signal the reader that it can stop when no more items are available
+        WAITING_READER_STATE.setTerminateIfEmpty(true);
 
         // wait for the reader to finish
         this.logger.info("Waiting for reader to finish");
         this.waitForTermination(readerExecution);
 
-        assertEquals(0, WorkingWriterState.WORKING_WRITER_STATE.getPendingCount());
-        assertEquals(itemCount, WorkingReaderState.WORKING_READER_STATE.getReadCount());
+        assertEquals(0, WORKING_WRITER_STATE.getPendingCount());
+        assertEquals(itemCount, WORKING_READER_STATE.getReadCount());
 
         stateExecutor.stop();
     }

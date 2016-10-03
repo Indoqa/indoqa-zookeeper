@@ -20,15 +20,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
 
 public class WorkingReaderState extends AbstractZooKeeperState {
 
     public static final WorkingReaderState WORKING_READER_STATE = new WorkingReaderState();
 
     private final AtomicInteger readCount = new AtomicInteger();
-
-    private boolean terminateIfEmpty;
 
     private WorkingReaderState() {
         super("Reading");
@@ -38,42 +35,17 @@ public class WorkingReaderState extends AbstractZooKeeperState {
         return this.readCount.get();
     }
 
-    public boolean isTerminateIfEmpty() {
-        return this.terminateIfEmpty;
-    }
-
-    @Override
-    public void process(WatchedEvent event) {
-        try {
-            this.processItems();
-        } catch (KeeperException e) {
-            // ignore during test
-        }
-    }
-
-    public void setTerminateIfEmpty(boolean terminateIfEmpty) {
-        this.terminateIfEmpty = terminateIfEmpty;
-
-        // make sure there will be a state transition to enter "onStart" again, in case we're currently waiting for new items
-        this.transitionTo(this);
-    }
-
     @Override
     protected void onStart() throws KeeperException {
-        this.processItems();
+        List<String> items = this.getChildren("/queue");
+
+        this.processItems(items);
+
+        // nothing left to process, go back to waiting for more items
+        this.transitionTo(WaitingReaderState.WAITING_READER_STATE);
     }
 
-    private void processItems() throws KeeperException {
-        // get all children under "/queue" and create a watch on it using "this" as the watcher
-        List<String> items = this.getChildrenAndWatch("/queue");
-        if (items.isEmpty()) {
-            if (this.terminateIfEmpty) {
-                this.terminate();
-            }
-            return;
-        }
-
-        // process all items that were found
+    private void processItems(List<String> items) throws KeeperException {
         for (String eachItem : items) {
             // simulate some short running operation
             try {
