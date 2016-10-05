@@ -16,8 +16,11 @@
  */
 package com.indoqa.zookeeper;
 
+import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
+
+import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
 
 import org.apache.zookeeper.KeeperException;
 
@@ -25,14 +28,14 @@ public class WorkingReaderState extends AbstractZooKeeperState {
 
     public static final WorkingReaderState WORKING_READER_STATE = new WorkingReaderState();
 
-    private final AtomicInteger readCount = new AtomicInteger();
+    private final Set<String> processedItems = new HashSet<>();
 
     private WorkingReaderState() {
         super("Reading");
     }
 
     public int getReadCount() {
-        return this.readCount.get();
+        return this.processedItems.size();
     }
 
     @Override
@@ -42,7 +45,7 @@ public class WorkingReaderState extends AbstractZooKeeperState {
         this.processItems(items);
 
         // nothing left to process, go back to waiting for more items
-        this.transitionTo(WaitingReaderState.WAITING_READER_STATE);
+        this.transitionTo(WAITING_READER_STATE);
     }
 
     private void processItems(List<String> items) throws KeeperException {
@@ -56,7 +59,7 @@ public class WorkingReaderState extends AbstractZooKeeperState {
 
             // remove the completed item and increase our counter
             this.deleteNode("/queue/" + eachItem);
-            this.readCount.incrementAndGet();
+            this.processedItems.add(eachItem);
         }
     }
 }
