@@ -18,9 +18,9 @@ package com.indoqa.zookeeper;
 
 import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.zookeeper.KeeperException;
 
@@ -28,18 +28,18 @@ public class WorkingReaderState extends AbstractZooKeeperState {
 
     public static final WorkingReaderState WORKING_READER_STATE = new WorkingReaderState();
 
-    private final Set<String> processedItems = new HashSet<>();
+    private final Set<String> processedItems = new TreeSet<>();
 
     private WorkingReaderState() {
         super("Reading");
     }
 
-    public Set<String> getProcessedItems() {
-        return this.processedItems;
+    public int getProcessedCount() {
+        return this.processedItems.size();
     }
 
-    public int getReadCount() {
-        return this.processedItems.size();
+    public Set<String> getProcessedItems() {
+        return this.processedItems;
     }
 
     @Override

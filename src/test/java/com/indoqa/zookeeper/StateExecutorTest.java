@@ -24,6 +24,8 @@ import static com.indoqa.zookeeper.WorkingWriterState.WORKING_WRITER_STATE;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.curator.test.InstanceSpec;
 import org.apache.curator.test.TestingCluster;
@@ -93,8 +95,14 @@ public class StateExecutorTest {
         this.logger.info("Waiting for reader to finish");
         this.waitForTermination(readerExecution);
 
+        Set<String> missingItems = new HashSet<>(WORKING_WRITER_STATE.getCreatedItems());
+        missingItems.removeAll(WORKING_READER_STATE.getProcessedItems());
+
+        this.logger.info("Created items: {}", WORKING_WRITER_STATE.getCreatedItems());
+        this.logger.info("Processed items: {}", WORKING_READER_STATE.getProcessedItems());
+
         assertEquals("The writer did not create the required number of items.", itemCount, WORKING_WRITER_STATE.getCreatedCount());
-        assertTrue("The reader did not receive all of the created items.",
+        assertTrue("The reader did not receive all of the created items. Missing: " + missingItems,
             WORKING_READER_STATE.getProcessedItems().containsAll(WORKING_WRITER_STATE.getCreatedItems()));
 
         stateExecutor.stop();

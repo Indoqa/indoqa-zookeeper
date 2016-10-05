@@ -16,8 +16,8 @@
  */
 package com.indoqa.zookeeper;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -27,7 +27,7 @@ public final class WorkingWriterState extends AbstractZooKeeperState {
     public static final WorkingWriterState WORKING_WRITER_STATE = new WorkingWriterState();
 
     private final byte[] data = new byte[0];
-    private Set<String> createdItems = new HashSet<>();
+    private Set<String> createdItems = new TreeSet<>();
     private int targetCount;
 
     private WorkingWriterState() {
