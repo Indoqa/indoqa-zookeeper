@@ -34,6 +34,10 @@ public class WorkingReaderState extends AbstractZooKeeperState {
         super("Reading");
     }
 
+    public Set<String> getProcessedItems() {
+        return this.processedItems;
+    }
+
     public int getReadCount() {
         return this.processedItems.size();
     }

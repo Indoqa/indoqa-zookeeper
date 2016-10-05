@@ -16,7 +16,8 @@
  */
 package com.indoqa.zookeeper;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -25,29 +26,42 @@ public final class WorkingWriterState extends AbstractZooKeeperState {
 
     public static final WorkingWriterState WORKING_WRITER_STATE = new WorkingWriterState();
 
-    private final AtomicInteger pendingCount = new AtomicInteger(0);
-
     private final byte[] data = new byte[0];
+    private Set<String> createdItems = new HashSet<>();
+    private int targetCount;
 
     private WorkingWriterState() {
         super("Writing");
     }
 
-    public int getPendingCount() {
-        return this.pendingCount.get();
+    private static String getItemName(String path) {
+        int index = path.lastIndexOf('/');
+        if (index == -1) {
+            return path;
+        }
+
+        return path.substring(index + 1);
     }
 
-    public void setPendingCount(int count) {
-        this.pendingCount.set(count);
+    public int getCreatedCount() {
+        return this.createdItems.size();
+    }
+
+    public Set<String> getCreatedItems() {
+        return this.createdItems;
+    }
+
+    public void setTargetCount(int targetCount) {
+        this.targetCount = targetCount;
     }
 
     @Override
     protected void onStart() throws KeeperException {
-        this.logger.info("Creating items. {} remaining.", this.pendingCount.get());
+        this.logger.info("Creating items. {} remaining.", this.targetCount - this.createdItems.size());
 
         // keep writing items as long as the pending count is not 0
         // don't worry about connection problems, the StateExecutor will restart our execution when necessary
-        while (this.pendingCount.get() > 0) {
+        while (this.targetCount > this.createdItems.size()) {
             // simulate some short running operation
             try {
                 Thread.sleep(10);
@@ -55,8 +69,8 @@ public final class WorkingWriterState extends AbstractZooKeeperState {
                 // ignore
             }
 
-            this.createNode("/queue/item-", this.data, CreateMode.PERSISTENT_SEQUENTIAL);
-            this.pendingCount.decrementAndGet();
+            String node = this.createNode("/queue/item-", this.data, CreateMode.PERSISTENT_SEQUENTIAL);
+            this.createdItems.add(getItemName(node));
         }
 
         // we're done writing, terminate this execution

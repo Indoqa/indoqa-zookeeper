@@ -21,7 +21,7 @@ import static com.indoqa.zookeeper.InitialWriterState.INITIAL_WRITER_STATE;
 import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
 import static com.indoqa.zookeeper.WorkingReaderState.WORKING_READER_STATE;
 import static com.indoqa.zookeeper.WorkingWriterState.WORKING_WRITER_STATE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 
@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StateExecutorTest {
+
+    private static final int MAX_WAIT_SECONDS = 120;
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -57,9 +59,9 @@ public class StateExecutorTest {
 
     @Test
     public void stressTest() throws Exception {
-        int itemCount = 2000;
+        int itemCount = 1000;
 
-        WORKING_WRITER_STATE.setPendingCount(itemCount);
+        WORKING_WRITER_STATE.setTargetCount(itemCount);
 
         StateExecutor stateExecutor = new StateExecutor(this.testingCluster.getConnectString(), 30000);
 
@@ -91,8 +93,9 @@ public class StateExecutorTest {
         this.logger.info("Waiting for reader to finish");
         this.waitForTermination(readerExecution);
 
-        assertEquals(0, WORKING_WRITER_STATE.getPendingCount());
-        assertEquals(itemCount, WORKING_READER_STATE.getReadCount());
+        assertEquals("The writer did not create the required number of items.", itemCount, WORKING_WRITER_STATE.getCreatedCount());
+        assertTrue("The reader did not receive all of the created items.",
+            WORKING_READER_STATE.getProcessedItems().containsAll(WORKING_WRITER_STATE.getCreatedItems()));
 
         stateExecutor.stop();
     }
@@ -106,7 +109,7 @@ public class StateExecutorTest {
     }
 
     private void waitForTermination(Execution execution) {
-        for (int i = 0; i < 120 && !execution.isTerminated(); i++) {
+        for (int i = 0; i < MAX_WAIT_SECONDS && !execution.isTerminated(); i++) {
             this.wait(1000);
         }
     }
