@@ -106,7 +106,7 @@ public class StateExecutorTest {
     }
 
     private void waitForTermination(Execution execution) {
-        for (int i = 0; i < 60 && !execution.isTerminated(); i++) {
+        for (int i = 0; i < 120 && !execution.isTerminated(); i++) {
             this.wait(1000);
         }
     }
