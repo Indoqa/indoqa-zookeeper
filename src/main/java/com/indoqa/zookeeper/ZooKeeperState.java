@@ -21,6 +21,8 @@ import org.apache.zookeeper.ZooKeeper;
 
 public interface ZooKeeperState {
 
+    boolean canRecoverFrom(RuntimeException runtimeException);
+
     String getName();
 
     void start(ZooKeeper zooKeeper, Execution executionEnvironment) throws KeeperException;

@@ -19,6 +19,7 @@ package com.indoqa.zookeeper;
 import static org.apache.zookeeper.CreateMode.PERSISTENT;
 import static org.apache.zookeeper.ZooDefs.Ids.OPEN_ACL_UNSAFE;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -35,13 +36,37 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     protected ZooKeeper zooKeeper;
-    protected Execution environment;
+    protected Execution execution;
 
     private final String name;
 
     protected AbstractZooKeeperState(String name) {
         super();
         this.name = name;
+    }
+
+    protected static String combinePath(String... name) {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for (String eachName : name) {
+            if (stringBuilder.length() == 0 || stringBuilder.charAt(stringBuilder.length() - 1) != '/') {
+                stringBuilder.append('/');
+            }
+
+            if (eachName.charAt(0) == '/') {
+                stringBuilder.append(eachName, 1, eachName.length());
+            } else {
+                stringBuilder.append(eachName);
+            }
+        }
+
+        return stringBuilder.toString();
+    }
+
+    @Override
+    public boolean canRecoverFrom(RuntimeException runtimeException) {
+        // default does not recover from any exception
+        return false;
     }
 
     @Override
@@ -54,14 +79,10 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
         // default does nothing
     }
 
-    public final void setZooKeeper(ZooKeeper zooKeeper) {
-        this.zooKeeper = zooKeeper;
-    }
-
     @Override
-    public final void start(ZooKeeper zk, Execution executionEnvironment) throws KeeperException {
+    public final void start(ZooKeeper zk, Execution ex) throws KeeperException {
         this.zooKeeper = zk;
-        this.environment = executionEnvironment;
+        this.execution = ex;
 
         this.onStart();
     }
@@ -79,6 +100,21 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
             this.zooKeeper.delete(path, -1);
             this.logger.debug("Deleted {}", path);
         });
+    }
+
+    /**
+     * Delete the node at the given path and all its children.
+     *
+     * @param path The path to be deleted.
+     */
+    protected final void deleteNodeStructure(String path) throws KeeperException {
+        List<String> children = this.getChildren(path);
+
+        for (String eachChild : children) {
+            this.deleteNodeStructure(combinePath(path, eachChild));
+        }
+
+        this.deleteNode(path);
     }
 
     protected final void ensureNodeExists(String path) throws KeeperException {
@@ -106,6 +142,14 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
 
     protected final byte[] getData(String path, Stat stat) throws KeeperException {
         return this.getResult(() -> this.zooKeeper.getData(path, false, stat));
+    }
+
+    protected final <T> T getEnvironmentValue(String key) {
+        return this.execution.getEnvironmentValue(key);
+    }
+
+    protected final <T> Collection<T> getEnvironmentValues(String key) {
+        return this.execution.getEnvironmentValues(key);
     }
 
     protected final String getLastName(String path) {
@@ -154,13 +198,17 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
         this.execute(() -> this.zooKeeper.setData(path, data, version));
     }
 
+    protected final void setEnvironmentValue(String key, Object value) {
+        this.execution.setEnvironmentValue(key, value);
+    }
+
     protected final void terminate() {
-        this.environment.terminate();
+        this.execution.terminate();
     }
 
     protected final void transitionTo(ZooKeeperState zooKeeperState) {
-        if (this.environment.isActive(this)) {
-            this.environment.transitionTo(zooKeeperState);
+        if (this.execution.isActive(this)) {
+            this.execution.transitionTo(zooKeeperState);
         }
     }
 

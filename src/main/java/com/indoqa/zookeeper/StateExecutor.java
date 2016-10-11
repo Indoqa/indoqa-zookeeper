@@ -16,20 +16,22 @@
  */
 package com.indoqa.zookeeper;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.zookeeper.KeeperException.ConnectionLossException;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StateExecutor {
+public class StateExecutor implements Closeable {
 
     private static final int FAILURE_DELAY = 10000;
+    private static final int DEFAULT_SESSION_TIMEOUT = 30000;
 
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -45,6 +47,10 @@ public class StateExecutor {
     private final int sessionTimeout;
     private boolean connecting;
 
+    public StateExecutor(String connectString) {
+        this(connectString, DEFAULT_SESSION_TIMEOUT);
+    }
+
     public StateExecutor(String connectString, int sessionTimeout) {
         this.connectString = connectString;
         this.sessionTimeout = sessionTimeout;
@@ -52,8 +58,33 @@ public class StateExecutor {
         this.connect();
     }
 
+    @Override
+    public void close() {
+        this.logger.info("Closing ...");
+
+        this.active = false;
+
+        // terminate all executions so they can end gracefully
+        for (ExecutionImpl eachExecution : this.executions) {
+            eachExecution.terminate();
+        }
+
+        // close the ZooKeeper instance
+        while (this.zooKeeper.getState().isAlive()) {
+            try {
+                this.zooKeeper.close();
+                this.logger.info("ZooKeeper closed.");
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
+
     public Execution executeState(ZooKeeperState zooKeeperState) {
-        ExecutionImpl execution = new ExecutionImpl(zooKeeperState);
+        String id = UUID.randomUUID().toString();
+
+        this.logger.info("Starting execution '{}' with initial state '{}'.", id, zooKeeperState.getName());
+        ExecutionImpl execution = new ExecutionImpl(id, zooKeeperState);
         this.executions.add(execution);
 
         Thread executionThread = new Thread(() -> this.execute(execution), "Execution-" + this.executionCount.getAndIncrement());
@@ -70,23 +101,14 @@ public class StateExecutor {
         this.environmentValues.put(key, values);
     }
 
-    public void stop() {
-        this.logger.info("Stopping ...");
-
-        this.active = false;
-
-        // terminate all executions so they can end gracefully
-        for (ExecutionImpl eachExecution : this.executions) {
-            eachExecution.terminate();
-        }
-
-        // close the ZooKeeper instance
-        while (this.zooKeeper.getState().isAlive()) {
-            try {
-                this.zooKeeper.close();
-                this.logger.info("ZooKeeper closed.");
-            } catch (InterruptedException e) {
-                // ignore
+    public void waitForTermination(Execution execution) {
+        while (!execution.isTerminated()) {
+            synchronized (execution) {
+                try {
+                    execution.wait();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
             }
         }
     }
@@ -166,8 +188,7 @@ public class StateExecutor {
             execution.executeStep();
         }
 
-        execution.setTerminated(true);
-        this.executions.remove(execution);
+        this.terminateExecution(execution);
     }
 
     private synchronized void restartAllExecutions() {
@@ -180,6 +201,18 @@ public class StateExecutor {
         this.notifyAll();
     }
 
+    private void terminateExecution(ExecutionImpl execution) {
+        execution.setTerminated(true);
+        this.executions.remove(execution);
+
+        // notify everyone that might be waiting
+        synchronized (execution) {
+            execution.notifyAll();
+        }
+
+        this.logger.info("Terminated execution '{}'.", execution.getId());
+    }
+
     private synchronized void waitForEvent() {
         try {
             this.wait();
@@ -190,6 +223,8 @@ public class StateExecutor {
 
     private class ExecutionImpl implements Execution {
 
+        private final String id;
+
         private final ZooKeeperState initialState;
 
         private ZooKeeperState currentState;
@@ -198,48 +233,41 @@ public class StateExecutor {
         private boolean terminationRequested;
         private boolean terminated;
 
-        public ExecutionImpl(ZooKeeperState initialState) {
+        private Map<String, Object> values = new HashMap<>();
+
+        public ExecutionImpl(String id, ZooKeeperState initialState) {
             super();
 
+            this.id = id;
             this.initialState = initialState;
             this.nextState = initialState;
         }
 
-        public void executeStep() {
-            try {
-                this.currentState = this.nextState;
-                this.nextState = null;
-
-                this.currentState.start(StateExecutor.this.zooKeeper, this);
-            } catch (ConnectionLossException e) {
-                StateExecutor.this.logger.error("Connection lost in state '{}'", this.currentState.getName(), e);
-                this.transitionTo(this.initialState);
-            } catch (Exception e) {
-                StateExecutor.this.logger.error("Failed to start state '{}'.", this.currentState.getName(), e);
-                this.restart();
-            }
-
-            while (this.nextState == null && !this.terminationRequested) {
-                synchronized (this) {
-                    try {
-                        this.wait();
-                    } catch (InterruptedException e) {
-                        // do nothing
-                    }
-                }
-            }
-        }
-
         @Override
         @SuppressWarnings("unchecked")
-        public <T> T getValue(String key) {
+        public <T> T getEnvironmentValue(String key) {
+            T result = (T) this.values.get(key);
+            if (result != null) {
+                return result;
+            }
+
             return (T) StateExecutor.this.environmentValues.get(key);
         }
 
         @Override
         @SuppressWarnings("unchecked")
-        public <T> Collection<T> getValues(String key) {
+        public <T> Collection<T> getEnvironmentValues(String key) {
+            Collection<T> result = (Collection<T>) this.values.get(key);
+            if (result != null) {
+                return result;
+            }
+
             return (Collection<T>) StateExecutor.this.environmentValues.get(key);
+        }
+
+        @Override
+        public String getId() {
+            return this.id;
         }
 
         @Override
@@ -257,16 +285,9 @@ public class StateExecutor {
             return this.terminationRequested;
         }
 
-        public void restart() {
-            this.nextState = this.initialState;
-
-            synchronized (this) {
-                this.notifyAll();
-            }
-        }
-
-        public void setTerminated(boolean terminated) {
-            this.terminated = terminated;
+        @Override
+        public void setEnvironmentValue(String key, Object value) {
+            this.values.put(key, value);
         }
 
         @Override
@@ -285,6 +306,85 @@ public class StateExecutor {
             synchronized (this) {
                 this.notifyAll();
             }
+        }
+
+        protected void executeStep() {
+            try {
+                this.currentState = this.nextState;
+                this.nextState = null;
+
+                this.currentState.start(StateExecutor.this.zooKeeper, this);
+            } catch (RuntimeException e) {
+                this.handleRuntimeException(e);
+            } catch (KeeperException e) {
+                this.handleKeeperException(e);
+            }
+
+            while (this.nextState == null && !this.terminationRequested) {
+                synchronized (this) {
+                    try {
+                        this.wait();
+                    } catch (InterruptedException e) {
+                        // do nothing
+                    }
+                }
+            }
+        }
+
+        protected void restart() {
+            this.nextState = this.initialState;
+
+            synchronized (this) {
+                this.notifyAll();
+            }
+        }
+
+        protected void setTerminated(boolean terminated) {
+            this.terminated = terminated;
+        }
+
+        private boolean canExecutorRecoverFrom(KeeperException e) {
+            if (e == null) {
+                return false;
+            }
+
+            switch (e.code()) {
+                case AUTHFAILED:
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
+        private boolean canStateRecoverFrom(RuntimeException runtimeException) {
+            try {
+                return this.currentState.canRecoverFrom(runtimeException);
+            } catch (Exception e) {
+                StateExecutor.this.logger.error("State could not determine if exception {} is recoverable.", runtimeException, e);
+                return false;
+            }
+        }
+
+        private void handleKeeperException(KeeperException e) {
+            if (this.canExecutorRecoverFrom(e)) {
+                StateExecutor.this.logger.error("Encountered recoverable exception in state '{}'.", this.currentState.getName(), e);
+                this.restart();
+                return;
+            }
+
+            StateExecutor.this.logger.error("Encountered fatal exception in state '{}'.", this.currentState.getName(), e);
+            this.terminate();
+        }
+
+        private void handleRuntimeException(RuntimeException e) {
+            if (this.canStateRecoverFrom(e)) {
+                StateExecutor.this.logger.error("Encountered recoverable exception in state '{}'.", this.currentState.getName(), e);
+                this.restart();
+                return;
+            }
+
+            StateExecutor.this.logger.error("Encountered fatal exception in state '{}'.", this.currentState.getName(), e);
+            this.terminate();
         }
     }
 }

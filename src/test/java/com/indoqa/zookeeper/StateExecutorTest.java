@@ -98,7 +98,7 @@ public class StateExecutorTest {
         List<String> children = stateExecutor.zooKeeper.getChildren("/queue", false);
         assertEquals("The reader did not process all of the created items.", 0, children.size());
 
-        stateExecutor.stop();
+        stateExecutor.close();
     }
 
     private void wait(int milliseconds) {

@@ -16,26 +16,18 @@
  */
 package com.indoqa.zookeeper;
 
-import java.util.Collection;
+import static org.junit.Assert.assertEquals;
 
-public interface Execution {
+import org.junit.Test;
 
-    <T> T getEnvironmentValue(String key);
+public class AbstractZooKeeperStateTest {
 
-    <T> Collection<T> getEnvironmentValues(String key);
-
-    String getId();
-
-    boolean isActive(ZooKeeperState state);
-
-    boolean isTerminated();
-
-    boolean isTerminationRequested();
-
-    void setEnvironmentValue(String key, Object value);
-
-    void terminate();
-
-    void transitionTo(ZooKeeperState state);
-
+    @Test
+    public void combinePath() {
+        assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("a", "b", "c"));
+        assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("/a", "/b", "/c"));
+        assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("/a/", "/b", "c"));
+        assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("a/b", "c"));
+        assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("/a/b/", "/c"));
+    }
 }
