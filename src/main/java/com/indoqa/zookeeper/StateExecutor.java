@@ -291,6 +291,11 @@ public class StateExecutor implements Closeable {
         }
 
         @Override
+        public void setEnvironmentValues(String key, Collection<? extends Object> values) {
+            this.values.put(key, values);
+        }
+
+        @Override
         public void terminate() {
             this.terminationRequested = true;
 

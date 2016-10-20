@@ -202,6 +202,10 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
         this.execution.setEnvironmentValue(key, value);
     }
 
+    protected final void setEnvironmentValues(String key, Collection<? extends Object> values) {
+        this.execution.setEnvironmentValues(key, values);
+    }
+
     protected final void terminate() {
         this.execution.terminate();
     }

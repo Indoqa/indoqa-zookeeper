@@ -34,6 +34,8 @@ public interface Execution {
 
     void setEnvironmentValue(String key, Object value);
 
+    void setEnvironmentValues(String key, Collection<? extends Object> values);
+
     void terminate();
 
     void transitionTo(ZooKeeperState state);
