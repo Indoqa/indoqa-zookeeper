@@ -60,7 +60,7 @@ public class StateExecutor implements Closeable {
 
     @Override
     public void close() {
-        this.logger.info("Closing ...");
+        this.logger.info("Closing ZooKeeper connection @ {} using a time-out of {} ms ...", this.connectString, this.sessionTimeout);
 
         this.active = false;
 
@@ -145,7 +145,7 @@ public class StateExecutor implements Closeable {
     }
 
     private void connect() {
-        this.logger.info("Connecting to ZooKeeper ensemble ...");
+        this.logger.info("Connecting to ZooKeeper ensemble @ {} using a time-out of {} ms.", this.connectString, this.sessionTimeout);
 
         try {
             this.connecting = true;
