@@ -81,11 +81,19 @@ public class StateExecutor implements Closeable {
     }
 
     public Execution executeState(ZooKeeperState zooKeeperState) {
+        return this.executeState(zooKeeperState, null);
+    }
+
+    public Execution executeState(ZooKeeperState zooKeeperState, Map<String, Object> additionalEnvironmentValues) {
         String id = UUID.randomUUID().toString();
 
         this.logger.info("Starting execution '{}' with initial state '{}'.", id, zooKeeperState.getName());
         ExecutionImpl execution = new ExecutionImpl(id, zooKeeperState);
         this.executions.add(execution);
+
+        if (additionalEnvironmentValues != null) {
+            additionalEnvironmentValues.entrySet().forEach(entry -> execution.setEnvironmentValue(entry.getKey(), entry.getValue()));
+        }
 
         Thread executionThread = new Thread(() -> this.execute(execution), "Execution-" + this.executionCount.getAndIncrement());
         executionThread.start();

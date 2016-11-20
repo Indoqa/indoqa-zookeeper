@@ -140,6 +140,10 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
         return this.getResult(() -> this.zooKeeper.getChildren(path, this));
     }
 
+    protected final byte[] getData(String path) throws KeeperException {
+        return this.getData(path, null);
+    }
+
     protected final byte[] getData(String path, Stat stat) throws KeeperException {
         return this.getResult(() -> this.zooKeeper.getData(path, false, stat));
     }
