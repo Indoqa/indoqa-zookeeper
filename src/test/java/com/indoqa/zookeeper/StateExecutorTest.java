@@ -105,7 +105,7 @@ public class StateExecutorTest {
         try {
             Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            this.logger.error("Failed to wait", e);
         }
     }
 
