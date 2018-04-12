@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher {
 
+    private static final char PATH_SEPARATOR = '/';
+
     private static final byte[] NO_DATA = new byte[0];
 
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -50,10 +52,10 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
 
         for (String eachName : name) {
             if (stringBuilder.length() == 0 || stringBuilder.charAt(stringBuilder.length() - 1) != '/') {
-                stringBuilder.append('/');
+                stringBuilder.append(PATH_SEPARATOR);
             }
 
-            if (eachName.charAt(0) == '/') {
+            if (eachName.charAt(0) == PATH_SEPARATOR) {
                 stringBuilder.append(eachName, 1, eachName.length());
             } else {
                 stringBuilder.append(eachName);
@@ -61,6 +63,19 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
         }
 
         return stringBuilder.toString();
+    }
+
+    protected static String getParentPath(String path) {
+        if (path == null || path.length() == 0) {
+            return path;
+        }
+
+        int index = path.lastIndexOf(PATH_SEPARATOR);
+        if (index < 1) {
+            return "/";
+        }
+
+        return path.substring(0, index);
     }
 
     @Override
@@ -119,6 +134,14 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
 
     protected final void ensureNodeExists(String path) throws KeeperException {
         this.execute(() -> {
+            if (this.zooKeeper.exists(path, false) != null) {
+                return;
+            }
+
+            if (!"/".equals(path)) {
+                this.ensureNodeExists(getParentPath(path));
+            }
+
             try {
                 this.zooKeeper.create(path, NO_DATA, OPEN_ACL_UNSAFE, PERSISTENT);
                 this.logger.debug("Created {}", path);
@@ -130,6 +153,10 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
 
     protected final boolean exists(String path) throws KeeperException {
         return this.getResult(() -> this.zooKeeper.exists(path, false) != null);
+    }
+
+    protected final boolean existsAndWatch(String path) throws KeeperException {
+        return this.getResult(() -> this.zooKeeper.exists(path, this) != null);
     }
 
     protected final List<String> getChildren(String path) throws KeeperException {
@@ -146,6 +173,14 @@ public abstract class AbstractZooKeeperState implements ZooKeeperState, Watcher 
 
     protected final byte[] getData(String path, Stat stat) throws KeeperException {
         return this.getResult(() -> this.zooKeeper.getData(path, false, stat));
+    }
+
+    protected final byte[] getDataAndWatch(String path) throws KeeperException {
+        return this.getDataAndWatch(path, null);
+    }
+
+    protected final byte[] getDataAndWatch(String path, Stat stat) throws KeeperException {
+        return this.getResult(() -> this.zooKeeper.getData(path, this, stat));
     }
 
     protected final <T> T getEnvironmentValue(String key) {
