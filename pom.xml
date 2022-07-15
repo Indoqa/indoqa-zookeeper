@@ -26,7 +26,7 @@
   </parent>
 
   <artifactId>indoqa-zookeeper</artifactId>
-  <version>3.6.2.0</version>
+  <version>3.6.2.1-SNAPSHOT</version>
 
   <name>Indoqa Zookeeper</name>
   <description>A simple state machine operating on Apache ZooKeeper</description>
@@ -35,7 +35,7 @@
     <connection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</connection>
     <developerConnection>scm:git:git@github.com:Indoqa/indoqa-zookeeper.git</developerConnection>
     <url>https://github.com/Indoqa/indoqa-zookeeper</url>
-    <tag>indoqa-zookeeper-3.6.2.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <properties>
