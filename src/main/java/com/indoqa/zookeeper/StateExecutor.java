@@ -146,6 +146,10 @@ public class StateExecutor implements Closeable {
                 this.restartAllExecutions();
                 break;
 
+            case Closed:
+                this.logger.info("ZooKeeper connection was closed.");
+                break;
+
             default:
                 this.logger.warn("Unhandled event of type {} and state {}", event.getType(), event.getState());
                 break;

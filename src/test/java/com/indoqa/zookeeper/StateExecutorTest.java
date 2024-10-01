@@ -63,42 +63,40 @@ public class StateExecutorTest {
 
         WORKING_WRITER_STATE.setTargetCount(itemCount);
 
-        StateExecutor stateExecutor = new StateExecutor(this.testingCluster.getConnectString(), 30000);
+        try (StateExecutor stateExecutor = new StateExecutor(this.testingCluster.getConnectString(), 30000)) {
+            Execution writerExecution = stateExecutor.executeState(INITIAL_WRITER_STATE);
+            Execution readerExecution = stateExecutor.executeState(INITIAL_READER_STATE);
 
-        Execution writerExecution = stateExecutor.executeState(INITIAL_WRITER_STATE);
-        Execution readerExecution = stateExecutor.executeState(INITIAL_READER_STATE);
+            // slowly kill off all ZooKeeper instances, eventually leading to a broken ensemble
+            for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
+                this.wait(5000);
+                this.logger.info("Killing server at port {} ..", eachInstance.getPort());
+                this.testingCluster.killServer(eachInstance);
+            }
 
-        // slowly kill off all ZooKeeper instances, eventually leading to a broken ensemble
-        for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
-            this.wait(5000);
-            this.logger.info("Killing server {}", eachInstance.getConnectString());
-            this.testingCluster.killServer(eachInstance);
+            // slowly restart all ZooKeeper instances, eventually restoring normal operation
+            for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
+                this.wait(5000);
+                this.logger.info("Restarting server at port {} ...", eachInstance.getPort());
+                this.testingCluster.restartServer(eachInstance);
+            }
+
+            // wait for the writer to finish
+            this.logger.info("Waiting for writer to finish");
+            this.waitForTermination(writerExecution);
+
+            // now signal the reader that it can stop when no more items are available
+            WAITING_READER_STATE.setTerminateIfEmpty(true);
+
+            // wait for the reader to finish
+            this.logger.info("Waiting for reader to finish");
+            this.waitForTermination(readerExecution);
+
+            assertEquals("The writer did not create the required number of items.", itemCount, WORKING_WRITER_STATE.getCreatedCount());
+
+            List<String> children = stateExecutor.zooKeeper.getChildren("/queue", false);
+            assertEquals("The reader did not process all of the created items.", 0, children.size());
         }
-
-        // slowly restart all ZooKeeper instances, eventually restoring normal operation
-        for (InstanceSpec eachInstance : this.testingCluster.getInstances()) {
-            this.wait(5000);
-            this.logger.info("Restarting server {}", eachInstance.getConnectString());
-            this.testingCluster.restartServer(eachInstance);
-        }
-
-        // wait for the writer to finish
-        this.logger.info("Waiting for writer to finish");
-        this.waitForTermination(writerExecution);
-
-        // now signal the reader that it can stop when no more items are available
-        WAITING_READER_STATE.setTerminateIfEmpty(true);
-
-        // wait for the reader to finish
-        this.logger.info("Waiting for reader to finish");
-        this.waitForTermination(readerExecution);
-
-        assertEquals("The writer did not create the required number of items.", itemCount, WORKING_WRITER_STATE.getCreatedCount());
-
-        List<String> children = stateExecutor.zooKeeper.getChildren("/queue", false);
-        assertEquals("The reader did not process all of the created items.", 0, children.size());
-
-        stateExecutor.close();
     }
 
     private void wait(int milliseconds) {
