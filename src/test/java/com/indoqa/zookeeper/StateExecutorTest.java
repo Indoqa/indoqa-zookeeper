@@ -20,16 +20,16 @@ import static com.indoqa.zookeeper.InitialReaderState.INITIAL_READER_STATE;
 import static com.indoqa.zookeeper.InitialWriterState.INITIAL_WRITER_STATE;
 import static com.indoqa.zookeeper.WaitingReaderState.WAITING_READER_STATE;
 import static com.indoqa.zookeeper.WorkingWriterState.WORKING_WRITER_STATE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.curator.test.InstanceSpec;
 import org.apache.curator.test.TestingCluster;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,16 +41,16 @@ public class StateExecutorTest {
 
     private TestingCluster testingCluster;
 
-    @After
-    public void after() throws IOException {
+    @AfterEach
+    void after() throws IOException {
         this.logger.info("Stopping test cluster");
         this.testingCluster.stop();
         this.wait(1000);
         this.testingCluster.close();
     }
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         this.logger.info("Starting test cluster");
         this.testingCluster = new TestingCluster(3);
         this.testingCluster.start();
@@ -58,7 +58,7 @@ public class StateExecutorTest {
     }
 
     @Test
-    public void stressTest() throws Exception {
+    void stressTest() throws Exception {
         int itemCount = 1000;
 
         WORKING_WRITER_STATE.setTargetCount(itemCount);
@@ -92,10 +92,10 @@ public class StateExecutorTest {
             this.logger.info("Waiting for reader to finish");
             this.waitForTermination(readerExecution);
 
-            assertEquals("The writer did not create the required number of items.", itemCount, WORKING_WRITER_STATE.getCreatedCount());
+            assertEquals(itemCount, WORKING_WRITER_STATE.getCreatedCount(), "The writer did not create the required number of items.");
 
             List<String> children = stateExecutor.zooKeeper.getChildren("/queue", false);
-            assertEquals("The reader did not process all of the created items.", 0, children.size());
+            assertEquals(0, children.size(), "The reader did not process all of the created items.");
         }
     }
 

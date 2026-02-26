@@ -6,3 +6,4 @@ bin
 cocoon-files
 .metadata
 .recommenders
+.java-version

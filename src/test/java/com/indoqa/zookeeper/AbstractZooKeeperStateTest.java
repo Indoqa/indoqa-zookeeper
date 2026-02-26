@@ -16,14 +16,14 @@
  */
 package com.indoqa.zookeeper;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class AbstractZooKeeperStateTest {
 
     @Test
-    public void combinePath() {
+    void combinePath() {
         assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("a", "b", "c"));
         assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("/a", "/b", "/c"));
         assertEquals("/a/b/c", AbstractZooKeeperState.combinePath("/a/", "/b", "c"));
