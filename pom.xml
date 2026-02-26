@@ -21,8 +21,8 @@
 
   <parent>
     <groupId>com.indoqa</groupId>
-    <artifactId>indoqa-oss-parent</artifactId>
-    <version>6</version>
+    <artifactId>indoqa-maven-root</artifactId>
+    <version>26</version>
   </parent>
 
   <artifactId>indoqa-zookeeper</artifactId>
